@@ -1,15 +1,12 @@
-// Import necessary modules
 const express = require('express');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
-require('dotenv').config();  // Load environment variables
+require('dotenv').config();
 
-// Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MongoDB Atlas connection from environment variable
-const mongoURI = process.env.MONGODB_URI;  // Use the URI from the .env file
+const mongoURI = process.env.MONGODB_URI;
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoose.connection;
 
@@ -18,7 +15,6 @@ db.once('open', () => {
   console.log('Connected to MongoDB Atlas');
 });
 
-// Define a schema for cryptocurrency data
 const cryptoSchema = new mongoose.Schema({
   name: String,
   price: Number,
@@ -29,10 +25,8 @@ const cryptoSchema = new mongoose.Schema({
 
 const Crypto = mongoose.model('Crypto', cryptoSchema);
 
-// Base URL for CoinGecko API
 const coinGeckoUrl = 'https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&include_market_cap=true&include_24hr_change=true';
 
-// Function to fetch cryptocurrency data and store it in the database
 async function fetchAndStoreCryptoData() {
   try {
     const ids = 'bitcoin,ethereum,matic-network';
@@ -42,14 +36,13 @@ async function fetchAndStoreCryptoData() {
       method: 'GET',
       headers: {
         accept: 'application/json',
-        'x-cg-demo-api-key': 'CG-TKqfbnVnUZ59mLcj8ZJf6oWg'  // Replace with your actual CoinGecko API key if needed
+        'x-cg-demo-api-key': 'CG-TKqfbnVnUZ59mLcj8ZJf6oWg'
       }
     });
 
     if (response.ok) {
       const data = await response.json();
       
-      // Map the response data to an array of Crypto documents
       const cryptoData = Object.keys(data).map(key => ({
         name: key,
         price: data[key].usd,
@@ -58,7 +51,6 @@ async function fetchAndStoreCryptoData() {
         fetched_at: new Date()
       }));
 
-      // Store in the database
       await Crypto.insertMany(cryptoData);
       console.log('Data fetched and stored successfully');
     } else {
@@ -69,10 +61,8 @@ async function fetchAndStoreCryptoData() {
   }
 }
 
-// Schedule the job to run every 2 hours
 cron.schedule('0 */2 * * *', fetchAndStoreCryptoData);
 
-// Endpoint to manually trigger the fetch
 app.get('/fetch', async (req, res) => {
   try {
     await fetchAndStoreCryptoData();
@@ -82,7 +72,6 @@ app.get('/fetch', async (req, res) => {
   }
 });
 
-// Implement the /stats endpoint to return the latest data about the requested cryptocurrency
 app.get('/stats', async (req, res) => {
   const { coin } = req.query;
 
@@ -91,14 +80,12 @@ app.get('/stats', async (req, res) => {
   }
 
   try {
-    // Fetch the latest data for the requested cryptocurrency from the database
     const crypto = await Crypto.findOne({ name: coin.toLowerCase() }).sort({ fetched_at: -1 });
 
     if (!crypto) {
       return res.status(404).send(`No data found for ${coin}`);
     }
 
-    // Return the latest data in the required format
     res.json({
       price: crypto.price,
       marketCap: crypto.market_cap,
@@ -109,7 +96,6 @@ app.get('/stats', async (req, res) => {
   }
 });
 
-// Implement the /deviation endpoint to calculate and return the standard deviation
 app.get('/deviation', async (req, res) => {
   const { coin } = req.query;
 
@@ -118,7 +104,6 @@ app.get('/deviation', async (req, res) => {
   }
 
   try {
-    // Fetch the last 100 records for the requested cryptocurrency
     const records = await Crypto.find({ name: coin.toLowerCase() })
                                 .sort({ fetched_at: -1 })
                                 .limit(100);
@@ -127,19 +112,14 @@ app.get('/deviation', async (req, res) => {
       return res.status(404).send(`No data found for ${coin}`);
     }
 
-    // Extract the prices from the records
     const prices = records.map(record => record.price);
 
-    // Calculate the mean (average) price
     const mean = prices.reduce((acc, price) => acc + price, 0) / prices.length;
 
-    // Calculate the variance
     const variance = prices.reduce((acc, price) => acc + Math.pow(price - mean, 2), 0) / prices.length;
 
-    // Calculate the standard deviation
     const standardDeviation = Math.sqrt(variance);
 
-    // Return the standard deviation in the required format
     res.json({
       deviation: standardDeviation.toFixed(6)
     });
@@ -148,7 +128,6 @@ app.get('/deviation', async (req, res) => {
   }
 });
 
-// Implement the /coin-data endpoint to fetch live data from CoinGecko API
 app.get('/coin-data', async (req, res) => {
   const { coin } = req.query;
 
@@ -163,19 +142,17 @@ app.get('/coin-data', async (req, res) => {
       method: 'GET',
       headers: {
         accept: 'application/json',
-        'x-cg-demo-api-key': 'CG-TKqfbnVnUZ59mLcj8ZJf6oWg'  // Replace with your actual CoinGecko API key if needed
+        'x-cg-demo-api-key': 'CG-TKqfbnVnUZ59mLcj8ZJf6oWg'
       }
     });
 
     if (response.ok) {
       const data = await response.json();
 
-      // Check if the coin data exists in the response
       if (!data[coin.toLowerCase()]) {
         return res.status(404).send(`No data found for ${coin}`);
       }
 
-      // Return the data in the required format
       const coinData = data[coin.toLowerCase()];
       res.json({
         price: coinData.usd,
@@ -190,7 +167,6 @@ app.get('/coin-data', async (req, res) => {
   }
 });
 
-// Start the Express server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
