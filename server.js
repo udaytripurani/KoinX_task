@@ -30,13 +30,13 @@ const cryptoSchema = new mongoose.Schema({
 const Crypto = mongoose.model('Crypto', cryptoSchema);
 
 // Base URL for CoinGecko API
-const url = 'https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&include_market_cap=true&include_24hr_change=true';
+const coinGeckoUrl = 'https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&include_market_cap=true&include_24hr_change=true';
 
 // Function to fetch cryptocurrency data and store it in the database
 async function fetchAndStoreCryptoData() {
   try {
     const ids = 'bitcoin,ethereum,matic-network';
-    const apiUrl = `${url}&ids=${ids}`;
+    const apiUrl = `${coinGeckoUrl}&ids=${ids}`;
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -145,6 +145,48 @@ app.get('/deviation', async (req, res) => {
     });
   } catch (err) {
     res.status(500).send('Error calculating standard deviation');
+  }
+});
+
+// Implement the /coin-data endpoint to fetch live data from CoinGecko API
+app.get('/coin-data', async (req, res) => {
+  const { coin } = req.query;
+
+  if (!coin) {
+    return res.status(400).send('Query parameter "coin" is required');
+  }
+
+  try {
+    const apiUrl = `${coinGeckoUrl}&ids=${coin.toLowerCase()}`;
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        'x-cg-demo-api-key': 'CG-TKqfbnVnUZ59mLcj8ZJf6oWg'  // Replace with your actual CoinGecko API key if needed
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+
+      // Check if the coin data exists in the response
+      if (!data[coin.toLowerCase()]) {
+        return res.status(404).send(`No data found for ${coin}`);
+      }
+
+      // Return the data in the required format
+      const coinData = data[coin.toLowerCase()];
+      res.json({
+        price: coinData.usd,
+        marketCap: coinData.usd_market_cap,
+        "24hChange": coinData.usd_24h_change
+      });
+    } else {
+      return res.status(500).send('Error fetching data from CoinGecko API');
+    }
+  } catch (err) {
+    return res.status(500).send('Error fetching data from CoinGecko API');
   }
 });
 
