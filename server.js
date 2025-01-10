@@ -108,6 +108,45 @@ app.get('/stats', async (req, res) => {
   }
 });
 
+// Implement the /deviation endpoint to calculate and return the standard deviation
+app.get('/deviation', async (req, res) => {
+  const { coin } = req.query;
+
+  if (!coin) {
+    return res.status(400).send('Query parameter "coin" is required');
+  }
+
+  try {
+    // Fetch the last 100 records for the requested cryptocurrency
+    const records = await Crypto.find({ name: coin.toLowerCase() })
+                                .sort({ fetched_at: -1 })
+                                .limit(100);
+
+    if (records.length === 0) {
+      return res.status(404).send(`No data found for ${coin}`);
+    }
+
+    // Extract the prices from the records
+    const prices = records.map(record => record.price);
+
+    // Calculate the mean (average) price
+    const mean = prices.reduce((acc, price) => acc + price, 0) / prices.length;
+
+    // Calculate the variance
+    const variance = prices.reduce((acc, price) => acc + Math.pow(price - mean, 2), 0) / prices.length;
+
+    // Calculate the standard deviation
+    const standardDeviation = Math.sqrt(variance);
+
+    // Return the standard deviation in the required format
+    res.json({
+      deviation: standardDeviation.toFixed(6)
+    });
+  } catch (err) {
+    res.status(500).send('Error calculating standard deviation');
+  }
+});
+
 // Start the Express server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
