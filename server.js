@@ -2,13 +2,14 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
+require('dotenv').config();  // Load environment variables
 
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MongoDB Atlas connection
-const mongoURI = 'mongodb+srv://uday:uday2acc@cluster0.uhds6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'; // Replace with your MongoDB Atlas connection string
+// MongoDB Atlas connection from environment variable
+const mongoURI = process.env.MONGODB_URI;  // Use the URI from the .env file
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoose.connection;
 
