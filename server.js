@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
 
+// Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -40,7 +41,7 @@ async function fetchAndStoreCryptoData() {
       method: 'GET',
       headers: {
         accept: 'application/json',
-        'x-cg-demo-api-key': 'CG-TKqfbnVnUZ59mLcj8ZJf6oWg'
+        'x-cg-demo-api-key': 'CG-TKqfbnVnUZ59mLcj8ZJf6oWg'  // Replace with your actual CoinGecko API key if needed
       }
     });
 
@@ -77,6 +78,33 @@ app.get('/fetch', async (req, res) => {
     res.send('Data fetched and stored successfully');
   } catch (err) {
     res.status(500).send('Error fetching and storing data');
+  }
+});
+
+// Implement the /stats endpoint to return the latest data about the requested cryptocurrency
+app.get('/stats', async (req, res) => {
+  const { coin } = req.query;
+
+  if (!coin) {
+    return res.status(400).send('Query parameter "coin" is required');
+  }
+
+  try {
+    // Fetch the latest data for the requested cryptocurrency from the database
+    const crypto = await Crypto.findOne({ name: coin.toLowerCase() }).sort({ fetched_at: -1 });
+
+    if (!crypto) {
+      return res.status(404).send(`No data found for ${coin}`);
+    }
+
+    // Return the latest data in the required format
+    res.json({
+      price: crypto.price,
+      marketCap: crypto.market_cap,
+      "24hChange": crypto.change_24hr
+    });
+  } catch (err) {
+    res.status(500).send('Error retrieving cryptocurrency data');
   }
 });
 
